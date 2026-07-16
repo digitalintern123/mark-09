@@ -212,9 +212,19 @@ def _build_group_summary(
             continue  # subtotals are added after
 
         g_rows = []
+        # Track display names already added in this group to prevent
+        # duplicates when multiple raw outlet names share the same display
+        # name (e.g. "T1D Lounge" and "T1D new premium lounge 2 (level 5)"
+        # both map to "Encalm Lounge (T1 D)").
+        seen_display_names: set = set()
         for outlet in outlets:
+            display_name = get_display_name(outlet)
+            if display_name in seen_display_names:
+                matched_outlets.add(outlet)  # still mark as matched
+                continue
             r = _outlet_row(outlet, group_name)
             if r:
+                seen_display_names.add(display_name)
                 rows.append(r)
                 g_rows.append(r)
                 matched_outlets.add(outlet)
