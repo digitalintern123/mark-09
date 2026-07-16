@@ -215,9 +215,7 @@ HYD_GROUPS: dict[str, list[str]] = {
     # Row 1: Atithya (M&G) — shown as first row in HYD Excel
     "Atithya": [
         "Meet & Greet (Hyderabad)",
-        "Meet & Greet",
         "M&G Hyd",
-        "M&G",
         "GAT (Hyderabad)",
         "GAT",
         "Atithya",
@@ -225,7 +223,6 @@ HYD_GROUPS: dict[str, list[str]] = {
     # Row 2: Domestic Lounge — all domestic area outlets
     "Domestic Lounge": [
         "Domestic Lounge (Hyderabad)",
-        "Domestic Lounge",
         "Hyd Dom Lounge",
         "HYD DOM Prive",
         "RL Domestic Arrival D",
@@ -235,7 +232,6 @@ HYD_GROUPS: dict[str, list[str]] = {
     # Row 3: International Lounge — all international area outlets
     "International Lounge": [
         "International Lounge (Hyderabad)",
-        "International Lounge",
         "Hyd Intl Lounge",
         "Hyd Intl Lounge - Closing",
         "INT Card Lounge",
@@ -248,8 +244,6 @@ HYD_GROUPS: dict[str, list[str]] = {
     # Row 4: Encalm Prive — Prive + INT Prive Mezzanine
     "Encalm Prive": [
         "Prive (Hyderabad)",
-        "Prive",
-        "Encalm Prive",
         "INT Prive - Mezzanine level",
     ],
     # Subtotal row
@@ -257,8 +251,6 @@ HYD_GROUPS: dict[str, list[str]] = {
     # Row 5: Baggage Wrapping
     "Baggage Wrapping": [
         "Baggage Wrapping (Hyderabad)",
-        "Baggage Wrapping",
-        "Enwrap",
     ],
     # Row 6: Sky Plates
     "Sky Plates": [
@@ -266,35 +258,41 @@ HYD_GROUPS: dict[str, list[str]] = {
         "Sky Plates (Hyderabad)",
         "Sky Plates Hyd",
         "Encalm Sky Plates",
-        "Sky Plates",
     ],
     # Row 7: Porter
     "Porter": [
         "Porter (Hyderabad)",
-        "Porter",
     ],
 }
 
 GOA_GROUPS: dict[str, list[str]] = {
     "Domestic": [
         "Domestic Lounge (Goa)",
-        "Goa Lounge Dom",           # name variant from revenue files
+        "Domestic Lounge",          # short name stored in DB
+        "Goa Lounge Dom",
         "RL Dom Departure",
         "RL Dom Arrival",
     ],
     "International": [
         "International Lounge (Goa)",
+        "International Lounge",     # short name stored in DB
         "Reserved Lounge (Goa)",
         "Reserved Lounge Goa",
-        "Goa Lounge INTL",          # name variant
+        "Reserved Lounge",          # short name stored in DB
+        "Goa Lounge INTL",
         "Prive (Goa)",
+        "CIP Lounge",               # stored in DB as short name
         "RL Int Arrival",
     ],
     "Ancillary": [
         "Baggage Wrapping (Goa)",
+        "Baggage Wrapping",         # short name stored in DB
         "Meet & Greet (Goa)",
-        "M&G Goa",                  # name variant
+        "Meet & Greet",             # short name stored in DB
+        "M&G Goa",
+        "M&G",                      # short name stored in DB
         "Porter (Goa)",
+        "Porter",                   # short name stored in DB
     ],
 }
 
@@ -328,10 +326,9 @@ def get_display_name(outlet: str, location: str = "") -> str:
 
     # Location-specific overrides for ambiguous names
     _LOCATION_OVERRIDES: dict[tuple[str, str], str] = {
-        # Reserved Lounge
         ("reserved lounge", "hyderabad"): "Reserved Lounge (HYD)",
         ("reserved lounge", "goa"):       "Reserved Lounge (Goa)",
-        # HYD — short outlet names that conflict with Delhi mappings
+        # HYD overrides
         ("international lounge", "hyderabad"):  "International Lounge",
         ("domestic lounge", "hyderabad"):       "Domestic Lounge",
         ("prive", "hyderabad"):                 "Encalm Prive",
@@ -353,13 +350,15 @@ def get_display_name(outlet: str, location: str = "") -> str:
         ("sky plates", "hyderabad"):                     "Sky Plates",
         ("porter", "hyderabad"):                "Porter",
         ("porter (hyderabad)", "hyderabad"):    "Porter",
-        # GOA — short names
-        ("international lounge", "goa"):        "International Lounge",
+        # GOA overrides — short names actually stored in DB
         ("domestic lounge", "goa"):             "Domestic Lounge",
+        ("international lounge", "goa"):        "International Lounge",
+        ("baggage wrapping", "goa"):            "Enwrap",
         ("enwrap", "goa"):                      "Enwrap",
-        ("m&g", "goa"):                         "M&G",
         ("meet & greet", "goa"):                "M&G",
+        ("m&g", "goa"):                         "M&G",
         ("porter", "goa"):                      "Porter",
+        ("cip lounge", "goa"):                  "CIP Lounge",
         ("reserved lounge goa", "goa"):         "Reserved Lounge (Goa)",
     }
     override = _LOCATION_OVERRIDES.get((key.lower(), loc))
