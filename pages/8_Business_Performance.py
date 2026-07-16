@@ -242,6 +242,63 @@ def _build_group_summary(
                 "cmp_traffic": next((r["cmp_traffic"] for r in g_rows_unmatched if r["cmp_traffic"]), None),
             }
 
+    # FIX: Multiple raw outlet names can share the same display name
+    # (e.g. "T1D Lounge" and "T1D new premium lounge 2 (level 5)" both map
+    # to "Encalm Lounge (T1 D)"). Without merging, those appear as two
+    # separate rows in the table with the same Outlet label.
+    # Merge all rows that share the same (Group, Outlet display name) by
+    # summing revenue/pax and using the first non-None traffic value.
+    from collections import defaultdict
+    merged: dict[tuple, dict] = {}
+    for r in rows:
+        if r.get("_is_subtotal"):
+            continue  # subtotals are re-added below — skip here
+        key = (r["Group"], r["Outlet"])
+        if key not in merged:
+            merged[key] = dict(r)
+        else:
+            m = merged[key]
+            # Sum numeric fields
+            for field in ("cur_rev", "cur_pax"):
+                m[field] = (m[field] or 0) + (r[field] or 0)
+            for field in ("cmp_rev", "cmp_pax"):
+                if r[field]:
+                    m[field] = (m[field] or 0) + r[field]
+            # AOP: sum
+            if r["aop"]:
+                m["aop"] = (m["aop"] or 0) + r["aop"]
+            # Traffic: keep first non-None (outlets sharing a display name
+            # are in the same terminal so the value is the same)
+            if m["cur_traffic"] is None:
+                m["cur_traffic"] = r["cur_traffic"]
+            if m["cmp_traffic"] is None:
+                m["cmp_traffic"] = r["cmp_traffic"]
+
+    # Recompute derived fields (YOY%, PEN%, SPP%) on merged totals
+    merged_rows = []
+    for r in merged.values():
+        cur_rev     = r["cur_rev"] or 0
+        cmp_rev     = r.get("cmp_rev")
+        cur_pax     = r["cur_pax"] or 0
+        cmp_pax     = r.get("cmp_pax")
+        traffic     = r["cur_traffic"]
+        cmp_traffic = r["cmp_traffic"]
+        aop         = r.get("aop")
+
+        r["rev_yoy"]     = ra.pct_change(cur_rev, cmp_rev)
+        r["pax_yoy"]     = ra.pct_change(cur_pax, cmp_pax)
+        r["traffic_chg"] = ra.pct_change(traffic, cmp_traffic)
+        r["pen_cur"]     = ra.safe_div(cur_pax, traffic) * 100 if traffic else None
+        r["pen_cmp"]     = ra.safe_div(cmp_pax, cmp_traffic) * 100 if cmp_traffic else None
+        r["pen_chg"]     = ra.pct_change(r["pen_cur"], r["pen_cmp"])
+        r["spp_cur"]     = ra.safe_div(cur_rev, traffic) if traffic else None
+        r["spp_cmp"]     = ra.safe_div(cmp_rev, cmp_traffic) if cmp_traffic and cmp_rev else None
+        r["spp_chg"]     = ra.pct_change(r["spp_cur"], r["spp_cmp"])
+        r["aop_var"]     = ra.pct_change(cur_rev, aop) if aop else None
+        merged_rows.append(r)
+
+    rows = merged_rows
+
     # Add subtotal rows
     for sub_label, source_groups in subtotals:
         sub_cur_rev     = sum(group_totals.get(g, {}).get("cur_rev", 0) for g in source_groups)
