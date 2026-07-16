@@ -52,9 +52,10 @@ if _DB_ENV:
     # Explicit env var — honour it but ensure the parent directory exists.
     DB_PATH = _DB_ENV
 else:
-    # On Streamlit Cloud the repo root (/mount/src/mark-9/) is read-only.
-    # Try candidate paths in order; use the first one we can write to.
-    # /tmp is always writable (ephemeral but lets the app boot).
+    # On Streamlit Cloud the repo root (/mount/src/) is read-only — SQLite
+    # cannot create or write a DB file there even if os.makedirs succeeds.
+    # Use a true write test (write + read back a byte) to confirm the path
+    # is genuinely writable before committing to it. /tmp is always safe.
     _repo_root = os.path.dirname(os.path.dirname(__file__))
     _candidates = [
         os.path.join(_repo_root, "data", "revenue_analytics.db"),
@@ -67,8 +68,13 @@ else:
             _dir = os.path.dirname(_candidate)
             if _dir:
                 os.makedirs(_dir, exist_ok=True)
-            with open(_candidate, "ab"):
-                pass
+            # True write test: open in read+write binary mode so the OS
+            # actually attempts a write syscall — catches read-only mounts
+            # that allow open() but reject writes (Streamlit Cloud behaviour).
+            _test_path = _dir + "/.write_test"
+            with open(_test_path, "wb") as _fh:
+                _fh.write(b"x")
+            os.remove(_test_path)
             DB_PATH = _candidate
             break
         except OSError:
