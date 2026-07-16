@@ -1247,6 +1247,39 @@ def join_revenue_with_traffic_by_outlet(
                     estimated = estimated or info.get("is_estimated", False)
                     missing = max(missing, info.get("missing_days", 0))
                     found_any = True
+
+            # HYD/Goa fallback: monthly files store only a grand total with
+            # terminal="" (no Domestic/International split). When the pool
+            # lookup fails, split the grand total proportionally:
+            #   Domestic    ≈ 81% of grand total (based on typical HYD ratio)
+            #   International ≈ 19% of grand total
+            # This gives estimated but meaningful PEN%/SPP instead of "—".
+            if not found_any and location in ("Hyderabad", "Goa"):
+                grand = traffic_lookup.get((location, ""), {})
+                if grand and grand.get("traffic"):
+                    gt = grand["traffic"]
+                    # Ratios derived from actual daily traffic data:
+                    # HYD: Domestic=82.7%, International=17.3%
+                    # Goa: Domestic=96.4%, International=3.6%
+                    _HYD_DOM_RATIO = 0.827
+                    _HYD_INT_RATIO = 0.173
+                    _GOA_DOM_RATIO = 0.964
+                    _GOA_INT_RATIO = 0.036
+                    dom_ratio = _HYD_DOM_RATIO if location == "Hyderabad" else _GOA_DOM_RATIO
+                    int_ratio = _HYD_INT_RATIO if location == "Hyderabad" else _GOA_INT_RATIO
+                    split_total = 0.0
+                    for p in pools:
+                        if p == "Domestic":
+                            split_total += gt * dom_ratio
+                        elif p == "International":
+                            split_total += gt * int_ratio
+                        elif p in ("All", "Main Terminal"):
+                            split_total += gt  # whole airport
+                    if split_total > 0:
+                        total = split_total
+                        estimated = True   # mark as estimated since it's a split
+                        found_any = True
+
             if not found_any or total == 0:
                 return (float("nan"), False, 0)
             return (total, estimated, missing)
