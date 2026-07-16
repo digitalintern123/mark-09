@@ -25,7 +25,7 @@ import streamlit as st
 from modules import comparison_widget, database, date_picker, revenue_analysis as ra, table_style
 from modules.formatting import format_money, format_pax, format_pct, format_spp
 from modules.outlet_groups import (
-    DELHI_GROUPS, DELHI_SUBTOTALS, HYD_GROUPS, GOA_GROUPS,
+    DELHI_GROUPS, DELHI_SUBTOTALS, HYD_GROUPS, HYD_SUBTOTALS, GOA_GROUPS,
     get_display_name, get_outlet_group,
 )
 from modules.session import bootstrap_session, default_active_date, set_active_date
@@ -425,7 +425,7 @@ with tab_hyd:
         st.info("No Hyderabad data for this period.")
     else:
         summary = _build_group_summary(
-            df_cur, HYD_GROUPS, [],
+            df_cur, HYD_GROUPS, HYD_SUBTOTALS,
             aop_df=df_aop, compare_df=df_cmp,
             location_filter="Hyderabad",
         )
