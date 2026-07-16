@@ -79,10 +79,15 @@ def render_date_dropdown(
             f"{label} — Year", options=years, index=year_index, key=year_key
         )
 
-    # Detect year change → reset month and day keys in session_state
+    # Detect year change → clamp month to nearest valid month in new year
+    # and clamp day accordingly. Preserves selections as much as possible.
     if st.session_state.get(prev_year_key) != selected_year:
-        st.session_state.pop(month_key, None)
-        st.session_state.pop(day_key, None)
+        prev_month = st.session_state.get(month_key)
+        if prev_month is not None and prev_month not in months_in_year:
+            closest_month = min(months_in_year, key=lambda m: abs(m - prev_month))
+            st.session_state[month_key] = closest_month
+        # day will be clamped in the month-change block below if needed
+        st.session_state.pop(f"__dp_{key_prefix}_prev_month", None)  # force month re-check
     st.session_state[prev_year_key] = selected_year
 
     # ── Month — filtered to selected_year ─────────────────────────────────
@@ -108,9 +113,17 @@ def render_date_dropdown(
             key=month_key,
         )
 
-    # Detect month change → reset day key in session_state
+    # Detect month change → clamp day to nearest valid day in new month
+    # instead of resetting to the default (last day). This preserves the
+    # user's day selection (e.g. day=29) when they switch months, as long
+    # as that day exists in the new month. If not, use the closest day.
     if st.session_state.get(prev_month_key) != (selected_year, selected_month):
-        st.session_state.pop(day_key, None)
+        prev_day = st.session_state.get(day_key)
+        if prev_day is not None and prev_day not in days_in_month:
+            # Day doesn't exist in new month — pick the closest available day
+            closest = min(days_in_month, key=lambda d: abs(d - prev_day))
+            st.session_state[day_key] = closest
+        # If prev_day is valid in new month, leave it — it will be picked up below
     st.session_state[prev_month_key] = (selected_year, selected_month)
 
     # ── Day — filtered to selected_year + selected_month ──────────────────
