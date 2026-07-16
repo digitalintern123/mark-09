@@ -77,6 +77,8 @@ OUTLET_DISPLAY_NAME: dict[str, str] = {
     "CIP Lounge":                          "CIP Lounge",
     "Business Center":                     "Business Centre",
     # Hyderabad — all name variants map to the same display name
+    "Reserved Lounge (Hyderabad)":         "Reserved Lounge (HYD)",
+    "Reserved Lounge Hyd":                 "Reserved Lounge (HYD)",
     "Domestic Lounge (Hyderabad)":         "Domestic Lounge",
     "Hyd Dom Lounge":                      "Domestic Lounge",
     "HYD DOM Prive":                       "HYD DOM Prive",
@@ -99,6 +101,8 @@ OUTLET_DISPLAY_NAME: dict[str, str] = {
     "M&G Hyd":                             "M&G",
     "Porter (Hyderabad)":                  "Porter",
     # Goa
+    "Reserved Lounge (Goa)":               "Reserved Lounge (Goa)",
+    "Reserved Lounge Goa":                 "Reserved Lounge (Goa)",
     "Domestic Lounge (Goa)":              "Domestic Lounge",
     "Goa Lounge Dom":                      "Domestic Lounge",
     "RL Dom Departure":                    "RL Dom Departure",
@@ -203,6 +207,8 @@ HYD_GROUPS: dict[str, list[str]] = {
     ],
     "International": [
         "International Lounge (Hyderabad)",
+        "Reserved Lounge (Hyderabad)",
+        "Reserved Lounge Hyd",
         "Hyd Intl Lounge",          # name variant
         "Hyd Intl Lounge - Closing",
         "INT Prive - Mezzanine level",
@@ -232,6 +238,8 @@ GOA_GROUPS: dict[str, list[str]] = {
     ],
     "International": [
         "International Lounge (Goa)",
+        "Reserved Lounge (Goa)",
+        "Reserved Lounge Goa",
         "Goa Lounge INTL",          # name variant
         "Prive (Goa)",
         "RL Int Arrival",
@@ -256,9 +264,29 @@ DELHI_SUBTOTALS: list[tuple[str, list[str]]] = [
 ]
 
 
-def get_display_name(outlet: str) -> str:
-    """Return the management report display name for an outlet, or the outlet name itself."""
-    return OUTLET_DISPLAY_NAME.get(outlet.strip(), outlet.strip())
+def get_display_name(outlet: str, location: str = "") -> str:
+    """
+    Return the management report display name for an outlet.
+
+    Location-aware for ambiguous outlet names that exist at multiple airports
+    with different display names (e.g. 'Reserved Lounge' is 'RL Delhi' at
+    Delhi but should show as 'Reserved Lounge (HYD)' at Hyderabad).
+    Falls back to the outlet name itself if no mapping is found.
+    """
+    key = outlet.strip()
+    loc = location.strip().lower()
+
+    # Location-specific overrides for ambiguous names
+    _LOCATION_OVERRIDES: dict[tuple[str, str], str] = {
+        ("reserved lounge", "hyderabad"): "Reserved Lounge (HYD)",
+        ("reserved lounge", "goa"):       "Reserved Lounge (Goa)",
+        # 'Reserved Lounge' with no location = Delhi (default)
+    }
+    override = _LOCATION_OVERRIDES.get((key.lower(), loc))
+    if override:
+        return override
+
+    return OUTLET_DISPLAY_NAME.get(key, key)
 
 
 def get_outlet_group(outlet: str, location: str) -> str:
