@@ -142,10 +142,16 @@ def _build_group_summary(
     compare_traffic_map = {} # outlet+location → compare traffic
     if outlet_traffic_cur is not None and not outlet_traffic_cur.empty:
         for _, r in outlet_traffic_cur[outlet_traffic_cur["traffic"].notna()].iterrows():
-            traffic_map[(r["outlet"], r["location"])] = r["traffic"]
+            raw_key = (r["outlet"], r["location"])
+            display_key = (get_display_name(r["outlet"], r["location"]), r["location"])
+            traffic_map[raw_key] = r["traffic"]
+            traffic_map[display_key] = r["traffic"]   # also index by display name
     if outlet_traffic_cmp is not None and not outlet_traffic_cmp.empty:
         for _, r in outlet_traffic_cmp[outlet_traffic_cmp["traffic"].notna()].iterrows():
-            compare_traffic_map[(r["outlet"], r["location"])] = r["traffic"]
+            raw_key = (r["outlet"], r["location"])
+            display_key = (get_display_name(r["outlet"], r["location"]), r["location"])
+            compare_traffic_map[raw_key] = r["traffic"]
+            compare_traffic_map[display_key] = r["traffic"]  # also index by display name
 
     # AOP lookup: outlet → aop value
     aop_map = {}
@@ -225,14 +231,14 @@ def _build_group_summary(
         for outlet in outlets:
             display_name = get_display_name(outlet, location_filter)
             if display_name in seen_display_names:
-                matched_outlets.add(outlet)  # still mark as matched
+                matched_outlets.add(display_name)  # track display name not raw
                 continue
             r = _outlet_row(outlet, group_name)
             if r:
                 seen_display_names.add(display_name)
                 rows.append(r)
                 g_rows.append(r)
-                matched_outlets.add(outlet)
+                matched_outlets.add(display_name)  # track display name not raw
 
         if g_rows:
             group_totals[group_name] = {
@@ -249,16 +255,48 @@ def _build_group_summary(
             }
 
     # Add any outlets that exist in the data but weren't matched by any group
-    # This handles name variants not yet listed in outlet_groups.py
+    # cur_agg["outlet"] contains display names; matched_outlets also contains
+    # display names now — so the set difference correctly finds unmatched ones.
     all_data_outlets = set(cur_agg["outlet"].unique()) if not cur_agg.empty else set()
     unmatched = all_data_outlets - matched_outlets
     if unmatched:
         g_rows_unmatched = []
-        for outlet in sorted(unmatched):
-            r = _outlet_row(outlet, "Other")
-            if r:
-                rows.append(r)
-                g_rows_unmatched.append(r)
+        for display_outlet in sorted(unmatched):
+            # _outlet_row expects a raw name to convert — but here we already
+            # have a display name. Look it up directly in cur_agg.
+            cur = cur_agg[cur_agg["outlet"] == display_outlet]
+            if cur.empty:
+                continue
+            cur_rev = cur["revenue"].sum()
+            if cur_rev == 0:
+                continue
+            cur_pax = cur["pax"].sum()
+            location = cur["location"].iloc[0]
+            traffic = traffic_map.get((display_outlet, location))
+            cmp = cmp_agg[cmp_agg["outlet"] == display_outlet]
+            cmp_rev = cmp["revenue"].sum() if not cmp.empty else None
+            cmp_pax = cmp["pax"].sum() if not cmp.empty else None
+            cmp_traffic = compare_traffic_map.get((display_outlet, location))
+            r = {
+                "Group": "Other",
+                "Outlet": display_outlet,
+                "_is_subtotal": False,
+                "cur_rev": cur_rev, "cmp_rev": cmp_rev,
+                "rev_yoy": ra.pct_change(cur_rev, cmp_rev),
+                "cur_pax": cur_pax, "cmp_pax": cmp_pax,
+                "pax_yoy": ra.pct_change(cur_pax, cmp_pax),
+                "cur_traffic": traffic, "cmp_traffic": cmp_traffic,
+                "traffic_chg": ra.pct_change(traffic, cmp_traffic),
+                "pen_cur": ra.safe_div(cur_pax, traffic) * 100 if traffic else None,
+                "pen_cmp": ra.safe_div(cmp_pax, cmp_traffic) * 100 if cmp_traffic else None,
+                "pen_chg": None,
+                "spp_cur": ra.safe_div(cur_rev, traffic) if traffic else None,
+                "spp_cmp": ra.safe_div(cmp_rev, cmp_traffic) if cmp_traffic and cmp_rev else None,
+                "spp_chg": None,
+                "aop": None, "aop_var": None,
+            }
+            rows.append(r)
+            g_rows_unmatched.append(r)
         if g_rows_unmatched:
             group_totals["Other"] = {
                 "cur_rev":     sum(r["cur_rev"] or 0 for r in g_rows_unmatched),
