@@ -210,7 +210,7 @@ _DELHI_OUTLET_TO_TERMINAL: dict[str, Optional[str]] = {
 # ---------------------------------------------------------------------------
 _HYDERABAD_OUTLET_TO_TERMINAL: dict[str, Optional[str]] = {
     # ── Domestic terminal ──────────────────────────────────────────────────
-    "Domestic Lounge":                   "Domestic",   # short name used in revenue data
+    "Domestic Lounge":                   "Domestic",
     "Domestic Lounge (Hyderabad)":       "Domestic",
     "Hyd Dom Lounge":                    "Domestic",
     "HYD DOM Prive":                     "Domestic",
@@ -219,12 +219,13 @@ _HYDERABAD_OUTLET_TO_TERMINAL: dict[str, Optional[str]] = {
     "RL Dom Dep E":                      "Domestic",
     "RL Dom Dep F":                      "Domestic",
     # ── International terminal ─────────────────────────────────────────────
-    "International Lounge":              "International",  # short name in revenue data
+    "International Lounge":              "International",
     "International Lounge (Hyderabad)":  "International",
     "Hyd Intl Lounge":                   "International",
     "Hyd Intl Lounge - Closing":         "International",
-    "Prive":                             "International",  # short name in revenue data
+    "Prive":                             "International",
     "Prive (Hyderabad)":                 "International",
+    "Encalm Prive":                      "International",
     "INT Prive - Mezzanine level":       "International",
     "INT Card Lounge - new (Level E) - Upcoming": "International",
     "INT Card Lounge":                   "International",
@@ -232,20 +233,31 @@ _HYDERABAD_OUTLET_TO_TERMINAL: dict[str, Optional[str]] = {
     "Airport Lodge (Hyderabad)":         "International",
     "Airport Lodge":                     "International",
     "Hyd GA Lounge":                     "International",
-    "GAT":                               "International",  # General Aviation Terminal
-    "Reserved Lounge":                   "International",  # reserved lounge in intl area
-    # ── No traffic pool ────────────────────────────────────────────────────
+    "GAT":                               "International",
+    "Reserved Lounge":                   "International",
+    "Reserved Lounge (HYD)":             "International",
+    # ── No traffic pool (food outlets) ────────────────────────────────────
     "Encalm Sky Plates":                 None,
     "Encalm Sky Plates (Hyderabad)":     None,
+    "Sky Plates":                        None,
+    "Sky Plates (Hyderabad)":            None,
+    "Sky Plates Hyd":                    None,
     "Transit Hotel":                     None,
     # ── Whole airport ─────────────────────────────────────────────────────
-    "Baggage Wrapping":                  "All",   # short name in revenue data
+    # Per Excel: Atithya + Baggage Wrapping use total airport traffic
+    "Baggage Wrapping":                  "All",
     "Baggage Wrapping (Hyderabad)":      "All",
-    "Meet & Greet":                      "All",   # short name in revenue data
+    "Enwrap":                            "All",
+    "Meet & Greet":                      "All",
     "Meet & Greet (Hyderabad)":          "All",
     "M&G Hyd":                           "All",
-    "Porter":                            "All",   # short name in revenue data
+    "M&G":                               "All",
+    "Atithya":                           "All",
+    "GAT (Hyderabad)":                   "All",
+    "Porter":                            "All",
     "Porter (Hyderabad)":                "All",
+    "Buggy Service":                     "All",
+    "Buggy":                             "All",
 }
 
 # ---------------------------------------------------------------------------
