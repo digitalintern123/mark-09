@@ -26,7 +26,7 @@ OUTLET_DISPLAY_NAME: dict[str, str] = {
     "T1D Lounge-1 Node L4&5 Card":         "Encalm Lounge (T1 D)",
     "T1D new Amex Lounge (level 4)":       "Amex Lounge T1",
     "T1D new premium lounge 2 (level 5)":  "Encalm Prive (T1)",
-    "Rupay":                               "Encalm Prive (T1)",
+    "Rupay":                               "Lounge Rupay",  # T3 Domestic lounge
     "Lounge Rupay (T1)":                   "Encalm Prive (T1)",
     "T1D Prive":                           "Encalm Prive (T1)",
     "T1D SPA":                             "Encalm Spa (T1 Dom)",
@@ -139,58 +139,89 @@ OUTLET_DISPLAY_NAME: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 DELHI_GROUPS: dict[str, list[str]] = {
+    # Row 1: Encalm Lounge (T1 D)
     "T1D (Lounges)": [
         "T1D Lounge",
         "T1D L4&5 Lounge",
         "T1D Lounge-1 Node L4&5 Card",
-        "T1D new premium lounge 2 (level 5)",
         "T1D new Amex Lounge (level 4)",
-        "Rupay",
-        "T1D SPA",
     ],
+    # Row 2: Encalm Prive (T1) — T1D premium lounge only (Rupay is T3 Dom)
+    "Encalm Prive (T1)": [
+        "T1D new premium lounge 2 (level 5)",
+        "Lounge Rupay (T1)",
+        "T1D Prive",
+    ],
+    # Row 3: Amex Lounge T1 — part of T1D group display but separate revenue line
+    # (already captured inside T1D (Lounges) via T1D new Amex Lounge (level 4))
+
+    # Row 4: Encalm Lounge (T2 D)
     "T2 (Lounges)": [
         "T2 Domestic",
-
         "T2 Lounge",
     ],
-    "Total (T1D + T2D)": [],   # computed as sum of T1D + T2D groups
+    "Total (T1D + T2D)": [],
 
-    "T3 Domestic": [
+    # Row 6: Encalm Lounge (T3 DL023 &4)
+    "T3 DL023": [
         "T3 DLO2/03/04",
-        "Lounge DL 02,03,04",
-        "Lounge DL 02&03",
         "T3 DL02/03/04",
         "T3 DL023 &4",
         "T3 DL023&4",
         "Lounge DL023 &4",
         "Lounge DL 023 & 4",
+        "Lounge DL 02,03,04",
+        "Lounge DL 02&03",
+    ],
+    # Row 7: Encalm Lounge (T3–D49)
+    "T3 D49": [
         "T3 D49",
-        "Lounge - Rupay",
-        "Lounge - Amex Centurion",
-        "Centurion Lounge",
+    ],
+    # Row 8: Air India Lounge (T3 Dom)
+    "Air India Lounge (T3 Dom)": [
         "Domestic AI Lounge Del",
         "Air India",
-        "Dom Spa",
-        "SPA Domestic",
     ],
-    "Total (T3 Domestic)": [],  # computed
+    # Row 9: Lounge Rupay (T3 Dom) — "Rupay" is the T3 lounge, not T1 Prive
+    "Lounge Rupay (T3)": [
+        "Rupay",
+        "Lounge - Rupay",
+        "Lounge Rupay",
+    ],
+    # Row 10: Lounge Amex Centurion
+    "Lounge Amex Centurion": [
+        "Lounge - Amex Centurion",
+        "Centurion Lounge",
+    ],
+    # Row 11: Total (T3 Domestic) — subtotal
+    "Total (T3 Domestic)": [],
+    # Row 12: T1+T2+T3 Dom — subtotal
+    "Total (T1+T2+T3 Domestic)": [],
 
-    "Total (T1+T2+T3 Domestic)": [],  # computed as T1D+T2D + T3 Dom
-
+    # Row 13: Encalm Lounge (T3 INT)
     "T3 International": [
         "INL 5&6",
         "T3 INL 5&6",
+        "International Lounge",
+    ],
+    # Row 14: Encalm Prive (T3)
+    "Encalm Prive (T3)": [
         "Premium Lounge",
         "T3 Premium",
+    ],
+    # Row 15: Encalm Xenia
+    "Encalm Xenia": [
         "Xenia",
         "First Class - Xenia Lounge",
-        "AI International Lounge",
-        "International Lounge",
-        "Spa - International",
-        "INTL Spa",
     ],
-    "Total (T3 International)": [],  # computed
+    # Row 16: AI International
+    "AI International": [
+        "AI International Lounge",
+    ],
+    # Row 17: Total (T3 International) — subtotal
+    "Total (T3 International)": [],
 
+    # Row 18-19-20: Arrivals
     "T3 Arrivals": [
         "Arrival Lounge LA 22",
         "LA 22",
@@ -200,38 +231,82 @@ DELHI_GROUPS: dict[str, list[str]] = {
         "RL Delhi",
         "CIP Lounge",
     ],
-    "Total Arrivals": [],  # computed
+    # Row 21: Total Arrivals — subtotal
+    "Total Arrivals": [],
 
-    "Ancillary": [
+    # Row 22: Enwrap
+    "Enwrap": [
         "Baggage Wrapping",
-        "Meet & Greet",
-        "Porter",
-        "Buggy Service",
-        "Business Center",
+        "Enwrap",
     ],
+    # Row 23: Porter
+    "Porter": [
+        "Porter",
+    ],
+    # Row 24: Buggy
+    "Buggy": [
+        "Buggy Service",
+    ],
+    # Row 25: Atithya (Meet & Greet only — Business Centre is a separate service)
+    "Atithya (M&G)": [
+        "Meet & Greet",
+    ],
+    # Business Centre — separate row, not part of Atithya
+    "Business Centre": [
+        "Business Center",
+        "Business Centre",
+    ],
+    # Row 26: Atithya (M&G, Porter, Buggy) — subtotal
+    "Atithya (M&G, Porter, Buggy)": [],
+
+    # Spas — shown after Atithya subtotal, before TOTAL EHPL
+    # Row 27: Encalm Spa (T3 INT)
+    "Encalm Spa (T3 INT)": [
+        "Spa - International",
+        "INTL Spa",
+    ],
+    # Row 28: Encalm Spa (T3 Dom)
+    "Encalm Spa (T3 Dom)": [
+        "Dom Spa",
+        "SPA Domestic",
+    ],
+    # Row 29: Encalm Spa (T1 Dom)
+    "Encalm Spa (T1 Dom)": [
+        "T1D SPA",
+    ],
+    # TOTAL EHPL — grand total row (after all outlets including Spas)
+    "TOTAL EHPL": [],
 }
 
 HYD_GROUPS: dict[str, list[str]] = {
-    # Row 1: Atithya (M&G) — shown as first row in HYD Excel
+    # Row 1: Atithya — M&G + GAT (traffic = whole airport)
     "Atithya": [
         "Meet & Greet (Hyderabad)",
+        "Meet & Greet",
         "M&G Hyd",
+        "M&G",
         "GAT (Hyderabad)",
         "GAT",
         "Atithya",
+        "Porter (Hyderabad)",
+        "Porter",
+        "Buggy Service",
+        "Buggy",
     ],
-    # Row 2: Domestic Lounge — all domestic area outlets
+    # Row 2: Domestic Lounge (traffic = Domestic terminal)
     "Domestic Lounge": [
         "Domestic Lounge (Hyderabad)",
+        "Domestic Lounge",
         "Hyd Dom Lounge",
         "HYD DOM Prive",
         "RL Domestic Arrival D",
         "RL Dom Dep E",
         "RL Dom Dep F",
     ],
-    # Row 3: International Lounge — all international area outlets
+    # Row 3: International Lounge (traffic = International terminal)
     "International Lounge": [
         "International Lounge (Hyderabad)",
+        "International Lounge",
         "Hyd Intl Lounge",
         "Hyd Intl Lounge - Closing",
         "INT Card Lounge",
@@ -241,28 +316,30 @@ HYD_GROUPS: dict[str, list[str]] = {
         "Hyd GA Lounge",
         "RL Int Arrival D",
     ],
-    # Row 4: Encalm Prive — Prive + INT Prive Mezzanine
+    # Row 4: Encalm Prive (traffic = International terminal)
     "Encalm Prive": [
         "Prive (Hyderabad)",
+        "Prive",
+        "Encalm Prive",
         "INT Prive - Mezzanine level",
     ],
-    # Subtotal row
-    "Total (International + Prive)": [],   # computed = International Lounge + Encalm Prive
-    # Row 5: Baggage Wrapping
+    # Row 5: Subtotal — Total (International + Prive)
+    "Total (International + Prive)": [],
+    # Row 6: Baggage Wrapping (traffic = whole airport)
     "Baggage Wrapping": [
         "Baggage Wrapping (Hyderabad)",
+        "Baggage Wrapping",
+        "Enwrap",
     ],
-    # Row 6: Sky Plates
+    # Sky Plates — no traffic (food outlet)
     "Sky Plates": [
         "Encalm Sky Plates (Hyderabad)",
         "Sky Plates (Hyderabad)",
         "Sky Plates Hyd",
         "Encalm Sky Plates",
+        "Sky Plates",
     ],
-    # Row 7: Porter
-    "Porter": [
-        "Porter (Hyderabad)",
-    ],
+    # Row 7: TOTAL — grand total (computed in code)
 }
 
 GOA_GROUPS: dict[str, list[str]] = {
@@ -300,15 +377,41 @@ GOA_GROUPS: dict[str, list[str]] = {
 # Subtotal computation rules: (subtotal_label, list_of_group_labels_to_sum)
 # ---------------------------------------------------------------------------
 DELHI_SUBTOTALS: list[tuple[str, list[str]]] = [
-    ("Total (T1D + T2D)",          ["T1D (Lounges)", "T2 (Lounges)"]),
-    ("Total (T3 Domestic)",         ["T3 Domestic"]),
-    ("Total (T1+T2+T3 Domestic)",   ["T1D (Lounges)", "T2 (Lounges)", "T3 Domestic"]),
-    ("Total (T3 International)",    ["T3 International"]),
-    ("Total Arrivals",              ["T3 Arrivals"]),
+    # Row 5: Total(T1+T2) = T1D Lounges + Encalm Prive T1 + T2
+    ("Total (T1D + T2D)",        ["T1D (Lounges)", "Encalm Prive (T1)", "T2 (Lounges)"]),
+    # Row 11: Total T3 Domestic = DL023 + D49 + Air India + Lounge Rupay + Centurion
+    ("Total (T3 Domestic)",      ["T3 DL023", "T3 D49", "Air India Lounge (T3 Dom)",
+                                   "Lounge Rupay (T3)", "Lounge Amex Centurion"]),
+    # Row 12: T1+T2+T3 Dom
+    ("Total (T1+T2+T3 Domestic)", ["T1D (Lounges)", "Encalm Prive (T1)", "T2 (Lounges)",
+                                    "T3 DL023", "T3 D49", "Air India Lounge (T3 Dom)",
+                                    "Lounge Rupay (T3)", "Lounge Amex Centurion"]),
+    # Row 17: Total T3 International
+    ("Total (T3 International)", ["T3 International", "Encalm Prive (T3)",
+                                   "Encalm Xenia", "AI International"]),
+    # Row 21: Total Arrivals
+    ("Total Arrivals",           ["T3 Arrivals"]),
+    # Row 26: Atithya (M&G, Porter, Buggy)
+    ("Atithya (M&G, Porter, Buggy)", ["Atithya (M&G)", "Porter", "Buggy"]),
+    # TOTAL EHPL — grand total of ALL Delhi groups including Spas
+    ("TOTAL EHPL", [
+        "T1D (Lounges)", "Encalm Prive (T1)", "Encalm Spa (T1 Dom)", "T2 (Lounges)",
+        "T3 DL023", "T3 D49", "Air India Lounge (T3 Dom)",
+        "Lounge Rupay (T3)", "Lounge Amex Centurion",
+        "T3 International", "Encalm Prive (T3)", "Encalm Xenia", "AI International",
+        "Encalm Spa (T3 INT)",
+        "T3 Arrivals",
+        "Enwrap", "Porter", "Buggy", "Atithya (M&G)", "Business Centre",
+        "Encalm Spa (T3 Dom)",
+    ]),
 ]
 
 HYD_SUBTOTALS: list[tuple[str, list[str]]] = [
+    # Total (International + Prive)
     ("Total (International + Prive)", ["International Lounge", "Encalm Prive"]),
+    # TOTAL = all HYD groups
+    ("TOTAL", ["Atithya", "Domestic Lounge", "International Lounge",
+                "Encalm Prive", "Baggage Wrapping", "Sky Plates"]),
 ]
 
 
@@ -328,6 +431,10 @@ def get_display_name(outlet: str, location: str = "") -> str:
     _LOCATION_OVERRIDES: dict[tuple[str, str], str] = {
         ("reserved lounge", "hyderabad"): "Reserved Lounge (HYD)",
         ("reserved lounge", "goa"):       "Reserved Lounge (Goa)",
+        # Delhi — Meet & Greet shows as "Atithya" in Business Performance
+        ("meet & greet", "delhi"):              "Atithya",
+        ("m&g", "delhi"):                       "Atithya",
+        ("business center", "delhi"):           "Business Centre",
         # HYD overrides
         ("international lounge", "hyderabad"):  "International Lounge",
         ("domestic lounge", "hyderabad"):       "Domestic Lounge",
