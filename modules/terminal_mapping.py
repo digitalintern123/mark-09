@@ -276,22 +276,24 @@ _GOA_OUTLET_TO_TERMINAL: dict[str, Optional[str]] = {
     "Goa Lounge INTL":                   "International",
     "Prive":                             "International",
     "Prive (Goa)":                       "International",
-    "Reserved Lounge":                   "International",   # short name in DB
+    "Reserved Lounge":                   "International",
     "Reserved Lounge (Goa)":             "International",
     "Reserved Lounge Goa":               "International",
-    "CIP Lounge":                        "International",   # short name in DB
+    "CIP Lounge":                        "International",
     "CIP Lounge Goa":                    "International",
     "RL Int Arrival":                    "International",
-    # ── Whole airport ─────────────────────────────────────────────────────
+    # ── Whole airport (Atithya = M&G — largest traffic pool) ──────────────
+    "Meet & Greet":                      "All",
+    "Meet & Greet (Goa)":                "All",
+    "M&G Goa":                           "All",
+    "M&G":                               "All",
+    # ── Baggage Wrapping — whole airport ──────────────────────────────────
     "Baggage Wrapping":                  "All",
     "Baggage Wrapping (Goa)":            "All",
     "Enwrap":                            "All",
-    "Meet & Greet":                      "All",
-    "Meet & Greet (Goa)":               "All",
-    "M&G Goa":                           "All",
-    "M&G":                               "All",
-    "Porter":                            "All",
-    "Porter (Goa)":                      "All",
+    # ── Porter — Porter Pool (Dom Dep + Int Dep) ───────────────────────────
+    "Porter":                            "Porter Pool",
+    "Porter (Goa)":                      "Porter Pool",
 }
 
 
