@@ -30,6 +30,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Optional
 
+import openpyxl
 import pandas as pd
 
 REQUIRED_OUTPUT_COLS = ["date", "segment", "outlet", "location", "pax", "revenue", "aop"]
@@ -484,6 +485,137 @@ def _score_header_row(row_values: list[str]) -> int:
     return score
 
 
+def _parse_wide_daily_pivot(file_obj) -> pd.DataFrame:
+    """
+    Parse multi-day wide-pivot revenue files (July 2026+ daily format).
+
+    Layout (one sheet, repeating blocks):
+      Row N:   "Revenue of:" | date
+      Row N+1: "Outlet / Business" | DELHI | HYDERABAD | GOA | ...
+      Row N+2: | PAX | Revenue | PAX | Revenue | PAX | Revenue | ...
+      Row N+3..M: outlet | del_pax | del_rev | hyd_pax | hyd_rev | goa_pax | goa_rev
+      ...
+
+    Returns long-format DataFrame with: date, segment, outlet, location, pax, revenue
+    Raises ValueError if "Revenue of:" blocks are not found.
+    """
+    import datetime as _dt
+
+    wb = openpyxl.load_workbook(file_obj, read_only=True, data_only=True)
+    sheet_name = None
+    for name in wb.sheetnames:
+        if "sheet2" in name.lower() or "data" in name.lower():
+            sheet_name = name
+            break
+    if sheet_name is None:
+        sheet_name = wb.sheetnames[0]
+    ws = wb[sheet_name]
+    all_rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    # Find day blocks
+    day_blocks = []
+    for i, row in enumerate(all_rows):
+        if row and row[0] == "Revenue of:" and len(row) > 1 and row[1] is not None:
+            date = row[1]
+            if isinstance(date, _dt.datetime):
+                date = date.date()
+            day_blocks.append((i, date))
+
+    if not day_blocks:
+        raise ValueError("No 'Revenue of:' blocks found")
+
+    # Outlet → (segment, canonical_name)
+    _MAP = {
+        "international lounge (del inl5&6; hyd & goa)": ("EHPL", "INL 5&6"),
+        "domestic lounge (del dlo2/3/4, hyd)":           ("EHPL", "Lounge DL 02,03,04"),
+        "domestic lounge - d49":                         ("EHPL", "T3 D49"),
+        "domestic lounge - t2":                          ("EHPL", "T2 Domestic"),
+        "domestic lounge - t1 l5":                       ("EHPL", "T1D new premium lounge 2 (level 5)"),
+        "domestic lounge - t1 l4":                       ("EHPL", "T1D new Amex Lounge (level 4)"),
+        "domestic lounge - t1 prive":                    ("EHPL", "T1D Prive"),
+        "domestic lounge - rupay":                       ("EHPL", "Lounge Rupay"),
+        "domestic lounge - air india":                   ("EHPL", "Air India"),
+        "domestic lounge - air india ":                  ("EHPL", "Air India"),
+        "international lounge - air india":              ("EHPL", "AI International Lounge"),
+        "international lounge - air india ":             ("EHPL", "AI International Lounge"),
+        "xenia - inl t3":                               ("EHPL", "Xenia"),
+        "xenia - inl t3 ":                              ("EHPL", "Xenia"),
+        "international lounge - premium":               ("EHPL", "Premium Lounge"),
+        "international lounge - premium ":              ("EHPL", "Premium Lounge"),
+        "sleeping pod - premium lounge":                ("EHPL", "Premium Lounge"),
+        "nap - premium lounge":                         ("EHPL", "Nap & Shower LA01"),
+        "spa - premium lounge":                         ("EHPL", "Spa - International"),
+        "domesticlounge- centurion amex t1":            ("EHPL", "T1D new Amex Lounge (level 4)"),
+        "domesticlounge- centurion amex t3":            ("EHPL", "Lounge - Amex Centurion"),
+        "arrival lounge - la22":                        ("EHPL", "Arrival Lounge LA 22"),
+        "transit lounge - la01":                        ("EHPL", "Nap & Shower LA01"),
+        "transit lounge - la12":                        ("EHPL", "Nap & Shower LA12"),
+        "reserve lounges":                              ("EHPL", "Reserved Lounge"),
+        "atithya":                                      ("EHPL", "Meet & Greet"),
+        "welcome & assist":                             ("EHPL", "Meet & Greet"),
+        "porter services- t1":                          ("EHPL", "Porter"),
+        "porter services -t2":                          ("EHPL", "Porter"),
+        "porter services -t3":                          ("EHPL", "Porter"),
+        "buggy services":                               ("EHPL", "Buggy Service"),
+        "enwrap services":                              ("EHPL", "Baggage Wrapping"),
+        "business centre":                              ("EHPL", "Business Center"),
+        "ceremonial(del)  /  ga (hyd)  /  cip(goa)":   ("EHPL", "CIP Lounge"),
+        "airport lodge":                                ("EHPL", "Airport Lodge"),
+        "domestic spa- dpa10 t3":                       ("EHPL", "Dom Spa"),
+        "domestic spa- t1":                             ("EHPL", "T1D SPA"),
+        "international spa- inl07 t3":                  ("EHPL", "Spa - International"),
+        "encalm eats":                                  ("EHPL", "Encalm Eats"),
+        "encalm sky plates":                            ("Sky Plates", "Encalm Sky Plates"),
+        "round d clock (rdc)-restaurant":               ("EHPL", "Round D Clock (RDC)"),
+        "round d clock -motel":                         ("EHPL", "Round D Clock (RDC)"),
+        "domestic bar - d49":                           ("EHPL", "Domestic Bar D49"),
+        "domestic bar - dlo2/3/4, hyd & goa":           ("EHPL", "Domestic Bar DLO"),
+        "domestic bar - rupay":                         ("EHPL", "Domestic Bar Rupay"),
+        "domestic bar - t1 l5":                         ("EHPL", "Domestic Bar T1"),
+        "domestic bar - t2":                            ("EHPL", "Domestic Bar T2"),
+        "international bar -  premium lounge":          ("EHPL", "International Bar Premium"),
+        "international bar - inl5&6, hyd & goa":        ("EHPL", "International Bar INL"),
+    }
+
+    _SKIP = {
+        "revenue of:", "outlet / business ", "outlet / business",
+        "pax", "revenue", "lounges & spa", "total", "subsidiary ",
+        "subsidiary", "others", "", "nan",
+    }
+
+    _LOC_COLS = [("Delhi", 1, 2), ("Hyderabad", 3, 4), ("Goa", 5, 6)]
+
+    records = []
+    for blk_i, (start, date) in enumerate(day_blocks):
+        end = day_blocks[blk_i + 1][0] if blk_i + 1 < len(day_blocks) else len(all_rows)
+        for row in all_rows[start + 3:end]:
+            if not row or row[0] is None:
+                continue
+            raw = str(row[0]).strip()
+            key = raw.lower()
+            if key in _SKIP or raw.startswith("*") or raw.lower().startswith("total"):
+                continue
+            seg, outlet = _MAP.get(key, ("EHPL", raw))
+            for loc, pc, rc in _LOC_COLS:
+                try:
+                    pax = float(row[pc]) if pc < len(row) and row[pc] is not None else None
+                    rev = float(row[rc]) if rc < len(row) and row[rc] is not None else None
+                except (TypeError, ValueError):
+                    pax = rev = None
+                if (rev is None or rev == 0) and (pax is None or pax == 0):
+                    continue
+                records.append({"date": date, "segment": seg, "outlet": outlet,
+                                 "location": loc, "pax": pax, "revenue": rev})
+
+    if not records:
+        raise ValueError("No revenue data extracted")
+
+    df = pd.DataFrame(records)
+    df["date"] = pd.to_datetime(df["date"]).dt.date
+    return df
+
+
 def parse_excel_auto(file_obj, source_file: str = "uploaded.xlsx") -> pd.DataFrame:
     """
     Universal entry point: figure out which sheet (if any) in this workbook
@@ -493,6 +625,8 @@ def parse_excel_auto(file_obj, source_file: str = "uploaded.xlsx") -> pd.DataFra
     or layout.
 
     Tries, in order:
+      0. A multi-day wide-daily-pivot sheet (Revenue of: date blocks,
+         outlets as rows, Delhi/HYD/Goa as columns) — July 2026+ format.
       1. A long-format sheet anywhere in the workbook (one row per
          date+location+segment+outlet) — any sheet name.
       2. A wide pivot/cross-tab sheet anywhere in the workbook (one row per
@@ -503,6 +637,18 @@ def parse_excel_auto(file_obj, source_file: str = "uploaded.xlsx") -> pd.DataFra
     layout is found in any sheet, rather than silently guessing and
     returning garbage.
     """
+    # ── 0. Multi-day wide-daily-pivot (July 2026+ daily format) ─────────────
+    if hasattr(file_obj, "seek"):
+        file_obj.seek(0)
+    try:
+        df = _parse_wide_daily_pivot(file_obj)
+        if not df.empty:
+            return df
+    except Exception:
+        pass
+
+    if hasattr(file_obj, "seek"):
+        file_obj.seek(0)
     long_match = detect_long_format_sheet(file_obj)
     if long_match is not None:
         return parse_revenue_dashboard(
