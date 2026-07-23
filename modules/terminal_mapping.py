@@ -291,9 +291,9 @@ _GOA_OUTLET_TO_TERMINAL: dict[str, Optional[str]] = {
     "Baggage Wrapping":                  "All",
     "Baggage Wrapping (Goa)":            "All",
     "Enwrap":                            "All",
-    # ── Porter — Porter Pool (Dom Dep + Int Dep) ───────────────────────────
-    "Porter":                            "Porter Pool",
-    "Porter (Goa)":                      "Porter Pool",
+    # ── Porter — whole airport for Goa (no Delhi-style Porter Pool) ──────
+    "Porter":                            "All",
+    "Porter (Goa)":                      "All",
 }
 
 
