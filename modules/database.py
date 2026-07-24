@@ -1169,6 +1169,10 @@ def join_revenue_with_traffic(revenue_df: pd.DataFrame, traffic_df: Optional[pd.
     dates = pd.to_datetime(work["date"]).dt.date
     start_date, end_date = dates.min(), dates.max()
 
+    # Normalise location to title-case so "GOA"/"DELHI" (revenue) matches
+    # "Goa"/"Delhi" (traffic) in the merge.
+    work["location"] = work["location"].str.strip().str.title()
+
     location_totals = work.groupby("location", as_index=False).agg(
         revenue=("revenue", "sum"), pax=("pax", "sum")
     )
@@ -1181,6 +1185,7 @@ def join_revenue_with_traffic(revenue_df: pd.DataFrame, traffic_df: Optional[pd.
             location_totals["traffic_is_estimated"] = False
             location_totals["traffic_missing_days"] = 0
             return location_totals
+        traffic_totals["location"] = traffic_totals["location"].str.strip().str.title()
         traffic_by_location = traffic_totals.groupby("location", as_index=False).agg(
             traffic=("traffic", "sum"),
             traffic_is_estimated=("is_estimated", "any"),
@@ -1192,6 +1197,8 @@ def join_revenue_with_traffic(revenue_df: pd.DataFrame, traffic_df: Optional[pd.
             location_totals["traffic_is_estimated"] = False
             location_totals["traffic_missing_days"] = 0
             return location_totals
+        traffic_df = traffic_df.copy()
+        traffic_df["location"] = traffic_df["location"].str.strip().str.title()
         traffic_by_location = traffic_df.groupby("location", as_index=False)["traffic"].sum()
         traffic_by_location["traffic_is_estimated"] = False
         traffic_by_location["traffic_missing_days"] = 0
@@ -1235,9 +1242,11 @@ def join_revenue_with_traffic_by_outlet(
     # Get all terminal-level traffic for this date range
     traffic_totals = get_traffic_total_for_range(start_date, end_date)
     # Build lookup: (location, terminal) → traffic info
+    # Normalise location to title-case so "GOA"/"DELHI"/"HYDERABAD" (from
+    # revenue uploads) match "Goa"/"Delhi"/"Hyderabad" (from traffic uploads).
     traffic_lookup: dict[tuple, dict] = {}
     for _, row in traffic_totals.iterrows():
-        key = (row["location"], str(row.get("terminal", "")))
+        key = (str(row["location"]).strip().title(), str(row.get("terminal", "")))
         traffic_lookup[key] = {
             "traffic": row["traffic"],
             "is_estimated": row.get("is_estimated", False),
@@ -1251,6 +1260,7 @@ def join_revenue_with_traffic_by_outlet(
 
     def _get_traffic(outlet: str, location: str) -> tuple:
         """Return (traffic, is_estimated, missing_days) for this outlet."""
+        location = str(location).strip().title()  # normalise case before lookup
         terminal = tm.get_terminal_for_outlet(outlet, location)
         if not terminal or terminal in ("", "Unmapped"):
             return (float("nan"), False, 0)
