@@ -46,45 +46,15 @@ from .date_utils import safe_month_shift as _safe_month_shift
 # on every restart/deploy. To persist data across restarts, set the env var
 # REVENUE_DB_PATH to a path outside the container (e.g. a mounted volume).
 # Locally it defaults to the repo root.
+# DB_PATH resolution — always /tmp unless overridden by env var.
+#
+# Streamlit Cloud mounts the repo at /mount/src/... which is READ-ONLY for
+# SQLite writes (OperationalError: attempt to write a readonly database).
+# /tmp is always writable on every platform (Streamlit Cloud, local, Docker).
+# If you need persistence across restarts set REVENUE_DB_PATH to a mounted
+# volume path (e.g. a Supabase-backed file or a Docker bind-mount).
 _DB_ENV = os.environ.get("REVENUE_DB_PATH", "").strip()
-
-if _DB_ENV:
-    DB_PATH = _DB_ENV
-else:
-    # Streamlit Cloud mounts repo at /mount/src/... which is READ-ONLY.
-    # Use a SQLite write test (not just a plain byte write) to confirm the
-    # path supports DDL operations. On Streamlit Cloud, /mount/src/... is a
-    # read-only FUSE mount: plain open()/write() succeeds on it (directory
-    # inodes are writable) but SQLite CREATE TABLE raises OperationalError
-    # ("attempt to write a readonly database"). /tmp is always fully writable.
-    import sqlite3 as _sqlite3
-    _repo_root = os.path.dirname(os.path.dirname(__file__))
-    _candidates = [
-        os.path.join(_repo_root, "data", "revenue_analytics.db"),
-        os.path.join(_repo_root, "revenue_analytics.db"),
-        "/tmp/revenue_analytics.db",
-    ]
-    DB_PATH = "/tmp/revenue_analytics.db"
-    for _candidate in _candidates:
-        try:
-            _dir = os.path.dirname(_candidate)
-            if _dir:
-                os.makedirs(_dir, exist_ok=True)
-            # SQLite-level write test: actually create a table and drop it.
-            # This catches read-only FUSE mounts that pass plain file writes.
-            _probe = _candidate + ".probe"
-            _con = _sqlite3.connect(_probe)
-            _con.execute("CREATE TABLE IF NOT EXISTS _probe (x INTEGER)")
-            _con.execute("DROP TABLE IF EXISTS _probe")
-            _con.close()
-            try:
-                os.remove(_probe)
-            except OSError:
-                pass
-            DB_PATH = _candidate
-            break
-        except (OSError, _sqlite3.OperationalError):
-            continue
+DB_PATH = _DB_ENV if _DB_ENV else "/tmp/revenue_analytics.db"
 
 _db_dir = os.path.dirname(os.path.abspath(DB_PATH))
 os.makedirs(_db_dir, exist_ok=True)
