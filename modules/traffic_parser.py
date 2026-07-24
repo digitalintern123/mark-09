@@ -275,6 +275,12 @@ def parse_traffic_auto(file_obj, source_file: str = "traffic.xlsx") -> pd.DataFr
 
     if all_parts:
         combined = pd.concat(all_parts, ignore_index=True)
+        # Drop rows with clearly invalid dates (year < 2000) — these are
+        # artifacts from the day/month-swap correction failing on ambiguous
+        # cells (e.g. year=1 from pd.to_datetime on a mangled date string).
+        combined = combined[combined["date"].apply(
+            lambda d: d.year >= 2000 if hasattr(d, "year") else True
+        )]
         combined = combined.drop_duplicates(
             subset=["date", "location", "terminal", "granularity"], keep="last"
         ).reset_index(drop=True)
@@ -365,18 +371,27 @@ def _find_reference_year_month(raw: pd.DataFrame, sheet_name: str = "") -> Optio
     correct day/month-swapped dates.
 
     Checks, in order:
-      1. Cell A1 as an actual date/datetime object.
-      2. Cell A1 as a month-label string via _parse_month_label
-         (e.g. "Jun-26" → (2026, 6)).  pd.to_datetime is NOT used here
-         because it misparses short-year month strings: pd.to_datetime
-         ("Jun-26") returns year=1, not 2026.
-      3. The sheet name itself via _parse_month_label (handles descriptive
-         names like "Gox Traffic June 26" → (2026, 6)).
+      1. All cells in row 0 as actual date/datetime objects — picks the
+         LATEST year/month found (not just A1). Goa sheets have two side-
+         by-side sections; A1 holds the prior-year anchor (e.g. 2025-07-01)
+         while the current-year anchor (e.g. 2026-07-01) is in col 10.
+         Taking the latest avoids misidentifying 2025 as the ref year.
+      2. Cell A1 as a month-label string via _parse_month_label.
+      3. The sheet name itself via _parse_month_label.
     """
     if raw.shape[0] > 0 and raw.shape[1] > 0:
+        # Scan entire first row for date cells; keep the latest year/month.
+        best_ym: Optional[tuple] = None
+        for ci in range(raw.shape[1]):
+            cell = raw.iat[0, ci]
+            if isinstance(cell, (dt.datetime, dt.date)):
+                ym = (cell.year, cell.month)
+                if best_ym is None or ym > best_ym:
+                    best_ym = ym
+        if best_ym is not None:
+            return best_ym
+        # Fall back to month-label string in A1
         title_cell = raw.iat[0, 0]
-        if isinstance(title_cell, (dt.datetime, dt.date)):
-            return (title_cell.year, title_cell.month)
         if pd.notna(title_cell):
             parsed = _parse_month_label(str(title_cell))
             if parsed is not None:
@@ -673,7 +688,11 @@ def _parse_goa_side_by_side(file_obj) -> Optional[pd.DataFrame]:
             if ref_ym is None:
                 ref_ym = _find_reference_year_month(raw, sheet_name=sheet_name)
 
-            # Parse data rows
+            # Parse data rows — handle three date formats found in Goa sheets:
+            #  1. Day number integer (original format): 1, 2, … 31
+            #  2. datetime object with day/month swapped by Excel: 2026-01-07
+            #     means July 1 not January 7 — corrected using ref_ym.
+            #  3. String date in MM/DD/YYYY or DD-MM-YYYY format: '07-13-2026'
             records = []
             for ri in range(data_start, len(raw)):
                 day_label = raw.iloc[ri, date_col_s] if date_col_s < raw.shape[1] else None
@@ -681,20 +700,60 @@ def _parse_goa_side_by_side(file_obj) -> Optional[pd.DataFrame]:
                 if pd.isna(day_label):
                     continue
                 if isinstance(day_label, str) and day_label.strip().lower() in (
-                    'full month', 'total', 'avg. daily', '2024-25', '2025-26'
+                    'full month', 'total', 'avg. daily', 'mid month',
+                    '2024-25', '2025-26', '2025-2026',
                 ):
-                    break
-                if not _looks_like_day_number(day_label):
-                    continue
-                if ref_ym is None:
                     continue
 
-                year, month = ref_ym
-                day_num = int(float(day_label))
-                last_day = calendar.monthrange(year, month)[1]
-                if day_num > last_day:
+                row_date = None
+
+                # Format 1: day-of-month integer
+                if _looks_like_day_number(day_label):
+                    if ref_ym is None:
+                        continue
+                    year, month = ref_ym
+                    day_num = int(float(day_label))
+                    last_day = calendar.monthrange(year, month)[1]
+                    if day_num > last_day:
+                        continue
+                    row_date = _dt.date(year, month, day_num)
+
+                # Format 2: datetime/date object — Excel may have swapped day/month
+                elif isinstance(day_label, (_dt.datetime, _dt.date)):
+                    d = day_label.date() if isinstance(day_label, _dt.datetime) else day_label
+                    if ref_ym is not None:
+                        ref_year, ref_month = ref_ym
+                        # If the parsed month != ref_month but parsed day == ref_month,
+                        # Excel did a DD/MM → MM/DD swap: swap back.
+                        if d.month != ref_month and d.day == ref_month:
+                            try:
+                                d = _dt.date(d.year, d.day, d.month)
+                            except ValueError:
+                                pass
+                    row_date = d
+
+                # Format 3: string like '07-13-2026' or '07/13/2026'
+                elif isinstance(day_label, str):
+                    s = day_label.strip()
+                    if s.lower() in ('full month', 'total', 'avg. daily', 'mid month',
+                                     '2024-25', '2025-26'):
+                        continue
+                    try:
+                        parsed_dt = pd.to_datetime(s, dayfirst=False, errors='raise')
+                        row_date = parsed_dt.date()
+                        # Apply same day/month swap correction
+                        if ref_ym is not None:
+                            ref_year, ref_month = ref_ym
+                            if row_date.month != ref_month and row_date.day == ref_month:
+                                try:
+                                    row_date = _dt.date(row_date.year, row_date.day, row_date.month)
+                                except ValueError:
+                                    pass
+                    except Exception:
+                        continue
+
+                if row_date is None:
                     continue
-                row_date = _dt.date(year, month, day_num)  # Goa uses day numbers so ref_ym is authoritative
 
                 for type_label in ('Domestic', 'International'):
                     total = 0.0
